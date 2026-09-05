@@ -1,0 +1,2017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales Performance Dashboard</title>
+
+  <!-- Plotly.js CDN -->
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #667085;
+      --border: #e4e7ec;
+      --accent: #2563eb;
+      --accent-soft: #eff6ff;
+      --danger: #b42318;
+      --success: #027a48;
+      --shadow: 0 7px 24px rgba(16, 24, 40, .07);
+    }
+
+    [data-theme="dark"] {
+      --bg: #101828;
+      --card: #182230;
+      --text: #f2f4f7;
+      --muted: #98a2b3;
+      --border: #344054;
+      --accent: #84adff;
+      --accent-soft: #1d2939;
+      --danger: #fda29b;
+      --success: #6ce9a6;
+      --shadow: 0 7px 24px rgba(0, 0, 0, .25);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: background .2s, color .2s;
+    }
+
+    .container {
+      width: min(1500px, calc(100% - 32px));
+      margin: auto;
+      padding: 24px 0 36px;
+    }
+
+    .header,
+    .controls-panel,
+    .kpi,
+    .chart-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .header {
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    h1 {
+      margin: 0 0 7px;
+      font-size: clamp(25px, 3vw, 35px);
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    button,
+    .file-label {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 9px 13px;
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 600;
+    }
+
+    button:hover,
+    .file-label:hover {
+      border-color: var(--accent);
+    }
+
+    .primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    .note {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .controls-panel {
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 12px;
+      align-items: end;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    input[type="date"],
+    select {
+      width: 100%;
+      min-height: 40px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--text);
+      font: inherit;
+    }
+
+    .status {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 9px;
+      background: var(--accent-soft);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status.error {
+      background: rgba(240, 68, 56, .08);
+      color: var(--danger);
+    }
+
+    .status.success {
+      background: rgba(18, 183, 106, .08);
+      color: var(--success);
+    }
+
+    .loading {
+      display: none;
+      align-items: center;
+      gap: 9px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .loading.show {
+      display: flex;
+    }
+
+    .spinner {
+      width: 17px;
+      height: 17px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .kpi {
+      border-radius: 14px;
+      padding: 18px;
+    }
+
+    .kpi-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 7px;
+    }
+
+    .kpi-value {
+      font-size: clamp(20px, 2.4vw, 28px);
+      font-weight: 800;
+    }
+
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .chart-card {
+      min-width: 0;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .chart-card.full {
+      grid-column: 1 / -1;
+    }
+
+    .chart-title {
+      padding: 16px 18px 0;
+      font-weight: 800;
+    }
+
+    .chart {
+      width: 100%;
+      height: 410px;
+    }
+
+    .empty {
+      min-height: 360px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 30px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 1100px) {
+      .controls { grid-template-columns: repeat(2, 1fr); }
+      .kpis { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    @media (max-width: 750px) {
+      .header-row {
+        flex-direction: column;
+      }
+
+      .actions {
+        justify-content: flex-start;
+      }
+
+      .controls,
+      .charts {
+        grid-template-columns: 1fr;
+      }
+
+      .chart-card.full {
+        grid-column: auto;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .container {
+        width: min(100% - 20px, 1500px);
+        padding-top: 10px;
+      }
+
+      .kpis {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .chart {
+        height: 340px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .kpis {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<main class="container">
+
+  <!-- Header -->
+  <section class="header">
+    <div class="header-row">
+      <div>
+        <h1>Sales Performance Dashboard</h1>
+        <p>Interactive analysis of your uploaded sales transactions.</p>
+      </div>
+
+      <div class="actions">
+        <label class="file-label primary" for="fileInput">Upload JSON</label>
+        <input id="fileInput" type="file" accept=".json,application/json">
+
+        <button id="themeBtn" type="button">Dark mode</button>
+        <button id="exportBtn" type="button">Export charts</button>
+      </div>
+    </div>
+
+    <div class="note">
+      Your JSON is processed locally in the browser. No application server is required.
+    </div>
+  </section>
+
+  <!-- Filters -->
+  <section class="controls-panel">
+
+    <div class="controls">
+
+      <div class="field">
+        <label for="startDate">START DATE</label>
+        <input id="startDate" type="date">
+      </div>
+
+      <div class="field">
+        <label for="endDate">END DATE</label>
+        <input id="endDate" type="date">
+      </div>
+
+      <div class="field">
+        <label for="productFilter">PRODUCT</label>
+        <select id="productFilter">
+          <option value="__ALL__">All products</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="regionFilter">REGION</label>
+        <select id="regionFilter">
+          <option value="__ALL__">All regions</option>
+        </select>
+      </div>
+
+    </div>
+
+    <div id="status" class="status">
+      No dataset loaded. Select a JSON file to begin.
+    </div>
+
+    <div id="loading" class="loading">
+      <span class="spinner"></span>
+      <span>Processing dataset and rebuilding dashboard...</span>
+    </div>
+
+  </section>
+
+  <!-- KPI Cards -->
+  <section class="kpis">
+
+    <article class="kpi">
+      <div class="kpi-label">TOTAL REVENUE</div>
+      <div id="kpiRevenue" class="kpi-value">₹0</div>
+    </article>
+
+    <article class="kpi">
+      <div class="kpi-label">TOTAL ORDERS</div>
+      <div id="kpiOrders" class="kpi-value">0</div>
+    </article>
+
+    <article class="kpi">
+      <div class="kpi-label">UNITS SOLD</div>
+      <div id="kpiUnits" class="kpi-value">0</div>
+    </article>
+
+    <article class="kpi">
+      <div class="kpi-label">AVERAGE ORDER VALUE</div>
+      <div id="kpiAov" class="kpi-value">₹0</div>
+    </article>
+
+    <article class="kpi">
+      <div class="kpi-label">RETURN RATE</div>
+      <div id="kpiReturnRate" class="kpi-value">0%</div>
+    </article>
+
+  </section>
+
+  <!-- Exactly five visualizations -->
+  <section id="charts" class="charts">
+
+    <div class="empty" style="grid-column:1/-1">
+      <div>
+        <h2>Upload your sales JSON</h2>
+        <p style="margin-top:8px">
+          Five visualizations will appear after the dataset is validated.
+        </p>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+
+<script>
+"use strict";
+
+/*
+============================================================
+ SALES PERFORMANCE DASHBOARD
+============================================================
+
+This dashboard is designed specifically for the sales schema
+provided by the user.
+
+Expected fields:
+
+    Date
+    Region
+    Product
+    Quantity
+    UnitPrice
+    StoreLocation
+    CustomerType
+    Discount
+    Salesperson
+    TotalPrice
+    PaymentMethod
+    Promotion
+    Returned
+    OrderID
+    CustomerName
+    ShippingCost
+    OrderDate
+    DeliveryDate
+    RegionManager
+
+Important:
+- Category is NOT required.
+- Product is used for product-level analysis.
+- TotalPrice is treated as sales/revenue.
+- Quantity is used for units sold.
+- OrderID is used for unique order count.
+- Returned is used for return rate.
+- OrderDate is preferred for time-series analysis.
+- Date is used as a fallback.
+- UTF-8 BOM characters are removed from field names.
+*/
+
+const state = {
+  raw: [],
+  filtered: [],
+  dark: false
+};
+
+
+/* =========================================================
+   FIELD HELPERS
+========================================================= */
+
+const FIELD_ALIASES = {
+  date: [
+    "OrderDate",
+    "Date",
+    "TransactionDate",
+    "SaleDate"
+  ],
+
+  revenue: [
+    "TotalPrice",
+    "Revenue",
+    "Sales",
+    "Amount",
+    "Value"
+  ],
+
+  quantity: [
+    "Quantity",
+    "Units",
+    "UnitsSold"
+  ],
+
+  region: [
+    "Region",
+    "Area",
+    "Territory"
+  ],
+
+  product: [
+    "Product",
+    "ProductName",
+    "Item",
+    "ItemName"
+  ],
+
+  customer: [
+    "CustomerName",
+    "Customer",
+    "CustomerID",
+    "Client",
+    "ClientName"
+  ],
+
+  orderID: [
+    "OrderID",
+    "OrderId",
+    "OrderNumber",
+    "OrderNo"
+  ],
+
+  returned: [
+    "Returned",
+    "Return",
+    "IsReturned"
+  ],
+
+  paymentMethod: [
+    "PaymentMethod",
+    "Payment",
+    "PaymentType"
+  ],
+
+  store: [
+    "StoreLocation",
+    "Store",
+    "Location"
+  ],
+
+  salesperson: [
+    "Salesperson",
+    "SalesPerson",
+    "SalesRep",
+    "Representative"
+  ],
+
+  promotion: [
+    "Promotion",
+    "Promo"
+  ]
+};
+
+
+/*
+  Removes:
+  - UTF-8 BOM (\uFEFF)
+  - whitespace
+  - spaces
+  - hyphens
+  - underscores
+
+  This allows keys such as:
+      "\ufeffDate"
+      "Order Date"
+      "order_date"
+
+  to be recognized consistently.
+*/
+function normalizeKey(key) {
+  return String(key)
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+}
+
+
+function findField(record, aliases) {
+
+  const keys = Object.keys(record);
+
+  const normalizedKeys = new Map(
+    keys.map(key => [normalizeKey(key), key])
+  );
+
+  for (const alias of aliases) {
+
+    const actualKey =
+      normalizedKeys.get(normalizeKey(alias));
+
+    if (actualKey !== undefined) {
+      return record[actualKey];
+    }
+  }
+
+  return undefined;
+}
+
+
+/* =========================================================
+   DATA CONVERSION
+========================================================= */
+
+function toNumber(value) {
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : NaN;
+  }
+
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return NaN;
+  }
+
+  const cleaned = String(value)
+    .replace(/[₹$€£,\s]/g, "")
+    .trim();
+
+  const result = Number(cleaned);
+
+  return Number.isFinite(result)
+    ? result
+    : NaN;
+}
+
+
+function parseDate(value) {
+
+  if (!value) return null;
+
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime())
+    ? null
+    : date;
+}
+
+
+function isoDate(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+
+/* =========================================================
+   FORMATTING
+========================================================= */
+
+function formatCurrency(value) {
+
+  return new Intl.NumberFormat(
+    "en-IN",
+    {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0
+    }
+  ).format(value || 0);
+}
+
+
+function formatNumber(value) {
+
+  return new Intl.NumberFormat(
+    "en-IN"
+  ).format(value || 0);
+}
+
+
+function setStatus(message, type = "") {
+
+  const status = document.getElementById("status");
+
+  status.textContent = message;
+
+  status.className =
+    "status " + type;
+}
+
+
+function setLoading(show) {
+
+  document
+    .getElementById("loading")
+    .classList.toggle("show", show);
+}
+
+
+/* =========================================================
+   DATA VALIDATION
+========================================================= */
+
+function validateDataset(records) {
+
+  if (!Array.isArray(records)) {
+
+    throw new Error(
+      "Invalid JSON format. The root element must be an array of sales records."
+    );
+  }
+
+  if (records.length === 0) {
+
+    throw new Error(
+      "The uploaded JSON file contains an empty array."
+    );
+  }
+
+  const firstValidRecord =
+    records.find(
+      record =>
+        record &&
+        typeof record === "object" &&
+        !Array.isArray(record)
+    );
+
+  if (!firstValidRecord) {
+
+    throw new Error(
+      "No valid sales record objects were found."
+    );
+  }
+
+  /*
+    Required logical fields for THIS dataset.
+
+    Category is intentionally NOT included.
+  */
+
+  const requiredFields = [
+    ["date", FIELD_ALIASES.date],
+    ["revenue", FIELD_ALIASES.revenue],
+    ["quantity", FIELD_ALIASES.quantity],
+    ["region", FIELD_ALIASES.region],
+    ["product", FIELD_ALIASES.product]
+  ];
+
+  const missing = [];
+
+  for (const [logicalName, aliases] of requiredFields) {
+
+    const exists =
+      records.some(
+        record =>
+          record &&
+          typeof record === "object" &&
+          findField(record, aliases) !== undefined
+      );
+
+    if (!exists) {
+      missing.push(logicalName);
+    }
+  }
+
+  if (missing.length) {
+
+    throw new Error(
+      "Missing required field(s): " +
+      missing.join(", ") +
+      ". Please check your JSON field names."
+    );
+  }
+}
+
+
+/* =========================================================
+   NORMALIZE DATA
+========================================================= */
+
+function normalizeRecords(records) {
+
+  const validRows = [];
+  let skippedRows = 0;
+
+  records.forEach(record => {
+
+    if (
+      !record ||
+      typeof record !== "object" ||
+      Array.isArray(record)
+    ) {
+      skippedRows++;
+      return;
+    }
+
+    const date =
+      parseDate(
+        findField(
+          record,
+          FIELD_ALIASES.date
+        )
+      );
+
+    const revenue =
+      toNumber(
+        findField(
+          record,
+          FIELD_ALIASES.revenue
+        )
+      );
+
+    const quantity =
+      toNumber(
+        findField(
+          record,
+          FIELD_ALIASES.quantity
+        )
+      );
+
+    if (
+      !date ||
+      !Number.isFinite(revenue) ||
+      !Number.isFinite(quantity)
+    ) {
+      skippedRows++;
+      return;
+    }
+
+    validRows.push({
+
+      date,
+
+      revenue,
+
+      quantity,
+
+      region:
+        String(
+          findField(
+            record,
+            FIELD_ALIASES.region
+          ) ?? "Unknown"
+        ).trim() || "Unknown",
+
+      product:
+        String(
+          findField(
+            record,
+            FIELD_ALIASES.product
+          ) ?? "Unknown"
+        ).trim() || "Unknown",
+
+      customer:
+        String(
+          findField(
+            record,
+            FIELD_ALIASES.customer
+          ) ?? "Unknown"
+        ).trim() || "Unknown",
+
+      orderID:
+        String(
+          findField(
+            record,
+            FIELD_ALIASES.orderID
+          ) ?? ""
+        ).trim(),
+
+      returned:
+        normalizeReturned(
+          findField(
+            record,
+            FIELD_ALIASES.returned
+          )
+        ),
+
+      paymentMethod:
+        String(
+          findField(
+            record,
+            FIELD_ALIASES.paymentMethod
+          ) ?? "Unknown"
+        ).trim() || "Unknown",
+
+      store:
+        String(
+          findField(
+            record,
+            FIELD_ALIASES.store
+          ) ?? "Unknown"
+        ).trim() || "Unknown",
+
+      salesperson:
+        String(
+          findField(
+            record,
+            FIELD_ALIASES.salesperson
+          ) ?? "Unknown"
+        ).trim() || "Unknown",
+
+      promotion:
+        String(
+          findField(
+            record,
+            FIELD_ALIASES.promotion
+          ) ?? "None"
+        ).trim() || "None"
+    });
+  });
+
+  if (!validRows.length) {
+
+    throw new Error(
+      "No valid sales records remain after validating dates, revenue and quantity."
+    );
+  }
+
+  return {
+    rows: validRows,
+    skipped: skippedRows
+  };
+}
+
+
+function normalizeReturned(value) {
+
+  if (
+    value === true ||
+    value === 1 ||
+    String(value).toLowerCase() === "1" ||
+    String(value).toLowerCase() === "true" ||
+    String(value).toLowerCase() === "yes" ||
+    String(value).toLowerCase() === "returned"
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+
+/* =========================================================
+   FILTERS
+========================================================= */
+
+function populateSelect(
+  elementID,
+  values,
+  label
+) {
+
+  const select =
+    document.getElementById(elementID);
+
+  select.innerHTML =
+    `<option value="__ALL__">All ${label}</option>`;
+
+  [
+    ...new Set(values)
+  ]
+    .filter(Boolean)
+    .sort((a, b) =>
+      String(a).localeCompare(
+        String(b)
+      )
+    )
+    .forEach(value => {
+
+      const option =
+        document.createElement("option");
+
+      option.value = value;
+      option.textContent = value;
+
+      select.appendChild(option);
+    });
+}
+
+
+function setupFilters() {
+
+  populateSelect(
+    "productFilter",
+    state.raw.map(row => row.product),
+    "products"
+  );
+
+  populateSelect(
+    "regionFilter",
+    state.raw.map(row => row.region),
+    "regions"
+  );
+
+  const dates =
+    state.raw
+      .map(row => row.date)
+      .sort(
+        (a, b) => a - b
+      );
+
+  const minDate =
+    isoDate(dates[0]);
+
+  const maxDate =
+    isoDate(
+      dates[dates.length - 1]
+    );
+
+  const start =
+    document.getElementById("startDate");
+
+  const end =
+    document.getElementById("endDate");
+
+  start.value = minDate;
+  end.value = maxDate;
+
+  start.min = minDate;
+  start.max = maxDate;
+
+  end.min = minDate;
+  end.max = maxDate;
+
+  document.getElementById(
+    "productFilter"
+  ).value = "__ALL__";
+
+  document.getElementById(
+    "regionFilter"
+  ).value = "__ALL__";
+}
+
+
+function applyFilters() {
+
+  if (!state.raw.length) return;
+
+  const startValue =
+    document.getElementById(
+      "startDate"
+    ).value;
+
+  const endValue =
+    document.getElementById(
+      "endDate"
+    ).value;
+
+  const start =
+    startValue
+      ? new Date(
+          startValue +
+          "T00:00:00"
+        )
+      : null;
+
+  const end =
+    endValue
+      ? new Date(
+          endValue +
+          "T23:59:59.999"
+        )
+      : null;
+
+  const product =
+    document.getElementById(
+      "productFilter"
+    ).value;
+
+  const region =
+    document.getElementById(
+      "regionFilter"
+    ).value;
+
+  state.filtered =
+    state.raw.filter(row => {
+
+      return (
+
+        (!start ||
+          row.date >= start) &&
+
+        (!end ||
+          row.date <= end) &&
+
+        (
+          product === "__ALL__" ||
+          row.product === product
+        ) &&
+
+        (
+          region === "__ALL__" ||
+          row.region === region
+        )
+      );
+    });
+
+  renderDashboard();
+}
+
+
+/* =========================================================
+   PLOTLY THEME
+========================================================= */
+
+function plotTheme() {
+
+  const styles =
+    getComputedStyle(
+      document.body
+    );
+
+  return {
+
+    paper_bgcolor:
+      "rgba(0,0,0,0)",
+
+    plot_bgcolor:
+      "rgba(0,0,0,0)",
+
+    font: {
+      color:
+        styles.getPropertyValue(
+          "--text"
+        )
+    },
+
+    margin: {
+      l: 65,
+      r: 25,
+      t: 20,
+      b: 60
+    },
+
+    hoverlabel: {
+      namelength: -1
+    }
+  };
+}
+
+
+function plotConfig() {
+
+  return {
+
+    responsive: true,
+
+    displaylogo: false,
+
+    modeBarButtonsToRemove: [
+      "lasso2d",
+      "select2d"
+    ]
+  };
+}
+
+
+/* =========================================================
+   CHART CONTAINERS
+========================================================= */
+
+function renderChartShell() {
+
+  document.getElementById(
+    "charts"
+  ).innerHTML = `
+
+    <article class="chart-card full">
+      <div class="chart-title">
+        1. Revenue Over Time
+      </div>
+      <div id="timeChart" class="chart"></div>
+    </article>
+
+    <article class="chart-card">
+      <div class="chart-title">
+        2. Sales by Region
+      </div>
+      <div id="regionChart" class="chart"></div>
+    </article>
+
+    <article class="chart-card">
+      <div class="chart-title">
+        3. Sales by Product
+      </div>
+      <div id="productChart" class="chart"></div>
+    </article>
+
+    <article class="chart-card">
+      <div class="chart-title">
+        4. Top 10 Customers
+      </div>
+      <div id="customerChart" class="chart"></div>
+    </article>
+
+    <article class="chart-card">
+      <div class="chart-title">
+        5. Cumulative Revenue vs Goal
+      </div>
+      <div id="goalChart" class="chart"></div>
+    </article>
+  `;
+}
+
+
+/* =========================================================
+   KPI CALCULATIONS
+========================================================= */
+
+function updateKPIs() {
+
+  const revenue =
+    state.filtered.reduce(
+      (sum, row) =>
+        sum + row.revenue,
+      0
+    );
+
+  /*
+    Count unique OrderID values when OrderID
+    is available. Otherwise fall back to row count.
+  */
+
+  const orderIDs =
+    state.filtered
+      .map(row => row.orderID)
+      .filter(Boolean);
+
+  const orders =
+    orderIDs.length
+      ? new Set(orderIDs).size
+      : state.filtered.length;
+
+  /*
+    Correct Units Sold calculation:
+    Quantity, NOT number of rows.
+  */
+
+  const units =
+    state.filtered.reduce(
+      (sum, row) =>
+        sum + row.quantity,
+      0
+    );
+
+  const returned =
+    state.filtered.filter(
+      row => row.returned
+    ).length;
+
+  const returnRate =
+    state.filtered.length
+      ? (
+          returned /
+          state.filtered.length
+        ) * 100
+      : 0;
+
+  const aov =
+    orders
+      ? revenue / orders
+      : 0;
+
+  document.getElementById(
+    "kpiRevenue"
+  ).textContent =
+    formatCurrency(revenue);
+
+  document.getElementById(
+    "kpiOrders"
+  ).textContent =
+    formatNumber(orders);
+
+  document.getElementById(
+    "kpiUnits"
+  ).textContent =
+    formatNumber(units);
+
+  document.getElementById(
+    "kpiAov"
+  ).textContent =
+    formatCurrency(aov);
+
+  document.getElementById(
+    "kpiReturnRate"
+  ).textContent =
+    returnRate.toFixed(2) +
+    "%";
+}
+
+
+/* =========================================================
+   1. REVENUE OVER TIME
+========================================================= */
+
+function renderTimeChart() {
+
+  const daily =
+    new Map();
+
+  state.filtered.forEach(row => {
+
+    const date =
+      isoDate(row.date);
+
+    daily.set(
+      date,
+      (
+        daily.get(date) || 0
+      ) + row.revenue
+    );
+  });
+
+  const data =
+    [...daily.entries()]
+      .sort(
+        (a, b) =>
+          a[0].localeCompare(
+            b[0]
+          )
+      );
+
+  Plotly.react(
+    "timeChart",
+    [
+      {
+        x: data.map(
+          item => item[0]
+        ),
+
+        y: data.map(
+          item => item[1]
+        ),
+
+        type: "scatter",
+
+        mode:
+          "lines+markers",
+
+        fill:
+          "tozeroy",
+
+        line: {
+          shape: "spline"
+        },
+
+        hovertemplate:
+          "%{x}" +
+          "<br>Revenue: ₹%{y:,.2f}" +
+          "<extra></extra>"
+      }
+    ],
+    {
+      ...plotTheme(),
+
+      xaxis: {
+        title: "Order Date",
+        type: "date"
+      },
+
+      yaxis: {
+        title: "Revenue",
+        tickprefix: "₹"
+      }
+    },
+
+    plotConfig()
+  );
+}
+
+
+/* =========================================================
+   2. SALES BY REGION
+========================================================= */
+
+function renderRegionChart() {
+
+  const data =
+    aggregate(
+      state.filtered,
+      row => row.region
+    );
+
+  Plotly.react(
+    "regionChart",
+    [
+      {
+        x:
+          data.map(
+            item => item[1]
+          ),
+
+        y:
+          data.map(
+            item => item[0]
+          ),
+
+        type: "bar",
+
+        orientation: "h",
+
+        hovertemplate:
+          "%{y}" +
+          "<br>Revenue: ₹%{x:,.2f}" +
+          "<extra></extra>"
+      }
+    ],
+    {
+      ...plotTheme(),
+
+      xaxis: {
+        title: "Revenue",
+        tickprefix: "₹"
+      },
+
+      yaxis: {
+        title: ""
+      }
+    },
+
+    plotConfig()
+  );
+}
+
+
+/* =========================================================
+   3. SALES BY PRODUCT
+========================================================= */
+
+function renderProductChart() {
+
+  const data =
+    aggregate(
+      state.filtered,
+      row => row.product
+    );
+
+  Plotly.react(
+    "productChart",
+    [
+      {
+        labels:
+          data.map(
+            item => item[0]
+          ),
+
+        values:
+          data.map(
+            item => item[1]
+          ),
+
+        type: "pie",
+
+        hole: 0.45,
+
+        textinfo:
+          "label+percent",
+
+        hovertemplate:
+          "%{label}" +
+          "<br>Revenue: ₹%{value:,.2f}" +
+          "<extra></extra>"
+      }
+    ],
+    {
+      ...plotTheme(),
+
+      margin: {
+        l: 20,
+        r: 20,
+        t: 20,
+        b: 20
+      }
+    },
+
+    plotConfig()
+  );
+}
+
+
+/* =========================================================
+   4. TOP 10 CUSTOMERS
+========================================================= */
+
+function renderCustomerChart() {
+
+  const data =
+    aggregate(
+      state.filtered,
+      row => row.customer
+    )
+      .slice(0, 10)
+      .reverse();
+
+  Plotly.react(
+    "customerChart",
+    [
+      {
+        x:
+          data.map(
+            item => item[1]
+          ),
+
+        y:
+          data.map(
+            item => item[0]
+          ),
+
+        type: "bar",
+
+        orientation: "h",
+
+        hovertemplate:
+          "%{y}" +
+          "<br>Revenue: ₹%{x:,.2f}" +
+          "<extra></extra>"
+      }
+    ],
+    {
+      ...plotTheme(),
+
+      xaxis: {
+        title: "Revenue",
+        tickprefix: "₹"
+      },
+
+      yaxis: {
+        title: ""
+      }
+    },
+
+    plotConfig()
+  );
+}
+
+
+/* =========================================================
+   5. CUMULATIVE REVENUE VS GOAL
+========================================================= */
+
+function renderGoalChart() {
+
+  const daily =
+    new Map();
+
+  state.filtered.forEach(row => {
+
+    const date =
+      isoDate(row.date);
+
+    daily.set(
+      date,
+      (
+        daily.get(date) || 0
+      ) + row.revenue
+    );
+  });
+
+  const sorted =
+    [...daily.entries()]
+      .sort(
+        (a, b) =>
+          a[0].localeCompare(
+            b[0]
+          )
+      );
+
+  let running = 0;
+
+  const cumulative =
+    sorted.map(item => {
+
+      running += item[1];
+
+      return running;
+    });
+
+  const total =
+    cumulative.length
+      ? cumulative[cumulative.length - 1]
+      : 0;
+
+  /*
+    Goal is a benchmark equal to 110%
+    of the revenue represented by the
+    currently selected date/filter range.
+  */
+
+  const goal =
+    total * 1.10;
+
+  const traces = [
+
+    {
+      x:
+        sorted.map(
+          item => item[0]
+        ),
+
+      y:
+        cumulative,
+
+      type: "scatter",
+
+      mode: "lines",
+
+      fill: "tozeroy",
+
+      name:
+        "Cumulative Revenue",
+
+      hovertemplate:
+        "%{x}" +
+        "<br>Cumulative: ₹%{y:,.2f}" +
+        "<extra></extra>"
+    },
+
+    {
+      x:
+        sorted.length
+          ? [
+              sorted[0][0],
+              sorted[sorted.length - 1][0]
+            ]
+          : [],
+
+      y:
+        sorted.length
+          ? [goal, goal]
+          : [],
+
+      type: "scatter",
+
+      mode: "lines",
+
+      name: "Goal",
+
+      line: {
+        dash: "dash"
+      },
+
+      hovertemplate:
+        "Goal: ₹%{y:,.2f}" +
+        "<extra></extra>"
+    }
+  ];
+
+  Plotly.react(
+    "goalChart",
+    traces,
+    {
+      ...plotTheme(),
+
+      xaxis: {
+        title: "Order Date"
+      },
+
+      yaxis: {
+        title: "Cumulative Revenue",
+        tickprefix: "₹"
+      },
+
+      legend: {
+        orientation: "h",
+        y: 1.12
+      }
+    },
+
+    plotConfig()
+  );
+}
+
+
+/* =========================================================
+   AGGREGATION
+========================================================= */
+
+function aggregate(rows, keyFunction) {
+
+  const map =
+    new Map();
+
+  rows.forEach(row => {
+
+    const key =
+      keyFunction(row) ||
+      "Unknown";
+
+    map.set(
+      key,
+      (
+        map.get(key) || 0
+      ) + row.revenue
+    );
+  });
+
+  return [
+    ...map.entries()
+  ].sort(
+    (a, b) =>
+      b[1] - a[1]
+  );
+}
+
+
+/* =========================================================
+   DASHBOARD RENDERING
+========================================================= */
+
+function renderDashboard() {
+
+  updateKPIs();
+
+  if (!state.filtered.length) {
+
+    document.getElementById(
+      "charts"
+    ).innerHTML = `
+
+      <div
+        class="empty"
+        style="grid-column:1/-1"
+      >
+        <div>
+          <h2>
+            No records match the current filters.
+          </h2>
+
+          <p style="margin-top:8px">
+            Adjust the date, product or region filters.
+          </p>
+        </div>
+      </div>
+    `;
+
+    return;
+  }
+
+  renderChartShell();
+
+  renderTimeChart();
+
+  renderRegionChart();
+
+  renderProductChart();
+
+  renderCustomerChart();
+
+  renderGoalChart();
+}
+
+
+/* =========================================================
+   FILE PROCESSING
+========================================================= */
+
+async function handleFile(file) {
+
+  if (!file) return;
+
+  setLoading(true);
+
+  setStatus(
+    "Reading and validating the JSON file..."
+  );
+
+  try {
+
+    const text =
+      await file.text();
+
+    let parsed;
+
+    try {
+      parsed = JSON.parse(text);
+    } catch (jsonError) {
+      throw new Error(
+        "The selected file is not valid JSON."
+      );
+    }
+
+    validateDataset(parsed);
+
+    const normalized =
+      normalizeRecords(parsed);
+
+    state.raw =
+      normalized.rows;
+
+    state.filtered =
+      [...state.raw];
+
+    setupFilters();
+
+    renderDashboard();
+
+    const skippedMessage =
+      normalized.skipped > 0
+        ? ` ${formatNumber(normalized.skipped)} invalid row(s) were skipped.`
+        : "";
+
+    setStatus(
+      `Successfully loaded ${formatNumber(state.raw.length)} valid sales record(s).${skippedMessage}`,
+      "success"
+    );
+
+  } catch (error) {
+
+    state.raw = [];
+    state.filtered = [];
+
+    document.getElementById(
+      "charts"
+    ).innerHTML = `
+
+      <div
+        class="empty"
+        style="grid-column:1/-1"
+      >
+        <div>
+          <h2>
+            Dashboard could not be built
+          </h2>
+
+          <p style="margin-top:8px">
+            ${escapeHtml(error.message)}
+          </p>
+        </div>
+      </div>
+    `;
+
+    document.getElementById(
+      "kpiRevenue"
+    ).textContent = "₹0";
+
+    document.getElementById(
+      "kpiOrders"
+    ).textContent = "0";
+
+    document.getElementById(
+      "kpiUnits"
+    ).textContent = "0";
+
+    document.getElementById(
+      "kpiAov"
+    ).textContent = "₹0";
+
+    document.getElementById(
+      "kpiReturnRate"
+    ).textContent = "0%";
+
+    setStatus(
+      error.message,
+      "error"
+    );
+
+  } finally {
+
+    setLoading(false);
+  }
+}
+
+
+/* =========================================================
+   DARK MODE
+========================================================= */
+
+function toggleTheme() {
+
+  state.dark =
+    !state.dark;
+
+  document.documentElement
+    .dataset.theme =
+      state.dark
+        ? "dark"
+        : "light";
+
+  document.getElementById(
+    "themeBtn"
+  ).textContent =
+    state.dark
+      ? "Light mode"
+      : "Dark mode";
+
+  if (state.filtered.length) {
+    renderDashboard();
+  }
+}
+
+
+/* =========================================================
+   EXPORT CHARTS
+========================================================= */
+
+async function exportCharts() {
+
+  const chartIDs = [
+    "timeChart",
+    "regionChart",
+    "productChart",
+    "customerChart",
+    "goalChart"
+  ];
+
+  for (
+    let i = 0;
+    i < chartIDs.length;
+    i++
+  ) {
+
+    const chart =
+      document.getElementById(
+        chartIDs[i]
+      );
+
+    if (!chart) continue;
+
+    await Plotly.downloadImage(
+      chart,
+      {
+        format: "png",
+        filename:
+          `sales-dashboard-chart-${i + 1}`,
+        width: 1400,
+        height: 800,
+        scale: 2
+      }
+    );
+  }
+}
+
+
+/* =========================================================
+   HTML ESCAPING
+========================================================= */
+
+function escapeHtml(value) {
+
+  return String(value)
+    .replace(
+      /[&<>"']/g,
+      character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      }[character])
+    );
+}
+
+
+/* =========================================================
+   EVENT LISTENERS
+========================================================= */
+
+document
+  .getElementById("fileInput")
+  .addEventListener(
+    "change",
+    event => {
+
+      const file =
+        event.target.files[0];
+
+      handleFile(file);
+
+      /*
+        Reset the input so the same JSON file
+        can be selected again and rebuilt.
+      */
+
+      event.target.value = "";
+    }
+  );
+
+
+[
+  "startDate",
+  "endDate",
+  "productFilter",
+  "regionFilter"
+].forEach(id => {
+
+  document
+    .getElementById(id)
+    .addEventListener(
+      "change",
+      applyFilters
+    );
+});
+
+
+document
+  .getElementById("themeBtn")
+  .addEventListener(
+    "click",
+    toggleTheme
+  );
+
+
+document
+  .getElementById("exportBtn")
+  .addEventListener(
+    "click",
+    exportCharts
+  );
+
+</script>
+
+</body>
+</html>
